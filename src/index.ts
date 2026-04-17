@@ -5,11 +5,10 @@ import { TurnState, MemoryStorage, TurnContext, AgentApplication, AttachmentDown
   from '@microsoft/agents-hosting'
 import { ActivityTypes } from '@microsoft/agents-activity'
 
-const subscriptionKey = 'YOUR_KEY'
-const endpoint = 'YOUR_ENDPOINT'
-const apiPath = '/language/:analyze-text?api-version=2022-05-01'
 const welcomeText = 'Hi! How is your day going?'
 const greetingPattern = /^(hi|hello|hey|good morning|good afternoon|good evening)$/i
+const thanksPattern = /^(thanks|thank you|thx)$/i
+const helpPattern = /^(help|\?)$/i
 
 // Create custom conversation state properties.  This is
 // used to store customer properties in conversation state.
@@ -17,16 +16,6 @@ interface ConversationState {
   count: number;
 }
 type ApplicationTurnState = TurnState<ConversationState>
-
-interface SentimentResponse {
-  results?: {
-    documents?: Array<{
-      confidenceScores?: {
-        positive?: number;
-      };
-    }>;
-  };
-}
 
 // Register IStorage.  For development, MemoryStorage is suitable.
 // For production Agents, persisted storage should be used so
@@ -55,7 +44,7 @@ agentApp.onActivity(ActivityTypes.Message, async (context: TurnContext, state: A
   const userText = context.activity.text?.trim()
 
   if (!userText) {
-    await context.sendActivity(`[${count}] Say something and I will analyze the sentiment.`)
+    await context.sendActivity(`[${count}] Say something and I will echo it back to you.`)
     return
   }
 
@@ -64,43 +53,19 @@ agentApp.onActivity(ActivityTypes.Message, async (context: TurnContext, state: A
     return
   }
 
-  try {
-    const documents = {
-      documents: [
-        {
-          id: '1',
-          language: 'en',
-          text: userText
-        }
-      ]
-    }
-
-    const response = await fetch(`${endpoint}${apiPath}`, {
-      method: 'POST',
-      headers: {
-        'Ocp-Apim-Subscription-Key': subscriptionKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        kind: 'SentimentAnalysis',
-        analysisInput: documents
-      })
-    })
-
-    const data = await response.json() as SentimentResponse
-    const positive = data?.results?.documents?.[0]?.confidenceScores?.positive ?? 0
-
-    const reply = (
-      positive > 0.8 ? "You sound happy! I'm glad to hear that!" :
-      positive > 0.2 ? 'Sounds like a pretty good day so far.' :
-      "You don't sound very happy. Sorry to hear that!"
+  if (helpPattern.test(userText)) {
+    await context.sendActivity(
+      `[${count}] Try saying hello, tell me how your day is going, or send any message and I will echo it back.`
     )
-
-    await context.sendActivity(`[${count}] ${reply}`)
-  } catch (error) {
-    console.error('Sentiment analysis failed:', error)
-    await context.sendActivity(`[${count}] I could not analyze that message right now.`)
+    return
   }
+
+  if (thanksPattern.test(userText)) {
+    await context.sendActivity(`[${count}] You're welcome!`)
+    return
+  }
+
+  await context.sendActivity(`[${count}] You said: ${userText}`)
 })
 
 startServer(agentApp)
