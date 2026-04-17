@@ -1,0 +1,112 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+import { startServer } from '@microsoft/agents-hosting-express'
+import { TurnState, MemoryStorage, TurnContext, AgentApplication, AttachmentDownloader }
+  from '@microsoft/agents-hosting'
+import { ActivityTypes } from '@microsoft/agents-activity'
+
+const welcomeText = 'Hi! How is your day going?'
+const greetingPattern = /^(hi|hello|hey|good morning|good afternoon|good evening)$/i
+const capabilitiesPattern = /^(what can you do|help|\?)$/i
+const timePattern = /^(what time is it|time|current time)$/i
+const datePattern = /^(what date is it|date|today)$/i
+const dayPattern = /^(what day is it|day)$/i
+const uptimePattern = /^(uptime|how long have you been running)$/i
+
+const botStartedAt = Date.now()
+
+// Create custom conversation state properties.  This is
+// used to store customer properties in conversation state.
+interface ConversationState {
+  count: number;
+}
+type ApplicationTurnState = TurnState<ConversationState>
+
+// Register IStorage.  For development, MemoryStorage is suitable.
+// For production Agents, persisted storage should be used so
+// that state survives Agent restarts, and operates correctly
+// in a cluster of Agent instances.
+const storage = new MemoryStorage()
+
+const downloader = new AttachmentDownloader()
+
+const agentApp = new AgentApplication<ApplicationTurnState>({
+  storage,
+  fileDownloaders: [downloader]
+})
+
+function formatDuration(milliseconds: number): string {
+  const totalSeconds = Math.floor(milliseconds / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`
+  }
+
+  return `${seconds}s`
+}
+
+// Display a welcome message when members are added
+agentApp.onConversationUpdate('membersAdded', async (context: TurnContext, state: ApplicationTurnState) => {
+  await context.sendActivity(welcomeText)
+})
+
+// Listen for ANY message to be received. MUST BE AFTER ANY OTHER MESSAGE HANDLERS
+agentApp.onActivity(ActivityTypes.Message, async (context: TurnContext, state: ApplicationTurnState) => {
+  let count = state.conversation.count ?? 0
+  state.conversation.count = ++count
+
+  const userText = context.activity.text?.trim()
+
+  if (!userText) {
+    await context.sendActivity(`[${count}] Say something and I will reply.`)
+    return
+  }
+
+  if (greetingPattern.test(userText)) {
+    await context.sendActivity(`[${count}] ${welcomeText}`)
+    return
+  }
+
+  if (capabilitiesPattern.test(userText)) {
+    await context.sendActivity(
+      `[${count}] I can greet you, tell you the current server time, tell you today's date, tell you the day of the week, show my uptime, or echo your message.`
+    )
+    return
+  }
+
+  if (timePattern.test(userText)) {
+    const now = new Date()
+    await context.sendActivity(`[${count}] The current server time is ${now.toLocaleTimeString()}.`)
+    return
+  }
+
+  if (datePattern.test(userText)) {
+    const now = new Date()
+    await context.sendActivity(`[${count}] Today's date is ${now.toLocaleDateString()}.`)
+    return
+  }
+
+  if (dayPattern.test(userText)) {
+    const now = new Date()
+    const dayName = now.toLocaleDateString(undefined, { weekday: 'long' })
+    await context.sendActivity(`[${count}] Today is ${dayName}.`)
+    return
+  }
+
+  if (uptimePattern.test(userText)) {
+    const uptime = formatDuration(Date.now() - botStartedAt)
+    await context.sendActivity(`[${count}] I have been running for ${uptime}.`)
+    return
+  }
+
+  await context.sendActivity(`[${count}] You said: ${userText}`)
+})
+
+startServer(agentApp)
