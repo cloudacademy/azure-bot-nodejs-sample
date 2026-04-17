@@ -6,6 +6,7 @@ import { TurnState, MemoryStorage, TurnContext, AgentApplication, AttachmentDown
 import { ActivityTypes } from '@microsoft/agents-activity'
 
 const welcomeText = 'Hi! How is your day going?'
+const greetingPattern = /^(hi|hello|hey|good morning|good afternoon|good evening)$/i
 // Create custom conversation state properties.  This is
 // used to store customer properties in conversation state.
 interface ConversationState {
@@ -40,11 +41,16 @@ agentApp.onActivity(ActivityTypes.Message, async (context: TurnContext, state: A
   const userText = context.activity.text?.trim()
 
   if (!userText) {
-    await context.sendActivity(`[${count}] Say something and I will echo it back to you.`)
+    await context.sendActivity(`[${count}] I could not analyze that message right now.`)
     return
   }
 
-  await context.sendActivity(`[${count}] You said: ${userText}`)
+  if (greetingPattern.test(userText)) {
+    await context.sendActivity(`[${count}] ${welcomeText}`)
+    return
+  }
+
+  await context.sendActivity(`[${count}] I could not analyze that message right now.`)
 })
 
 startServer(agentApp)
