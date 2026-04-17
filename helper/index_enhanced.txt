@@ -63,44 +63,45 @@ agentApp.onActivity(ActivityTypes.Message, async (context: TurnContext, state: A
   state.conversation.count = ++count
 
   const userText = context.activity.text?.trim()
+  const normalizedText = userText?.replace(/[?.!]+$/, '')
 
   if (!userText) {
     await context.sendActivity(`[${count}] Say something and I will reply.`)
     return
   }
 
-  if (greetingPattern.test(userText)) {
+  if (greetingPattern.test(normalizedText)) {
     await context.sendActivity(`[${count}] ${welcomeText}`)
     return
   }
 
-  if (capabilitiesPattern.test(userText)) {
+  if (capabilitiesPattern.test(normalizedText)) {
     await context.sendActivity(
       `[${count}] I can greet you, tell you the current server time, tell you today's date, tell you the day of the week, show my uptime, or echo your message.`
     )
     return
   }
 
-  if (timePattern.test(userText)) {
+  if (timePattern.test(normalizedText)) {
     const now = new Date()
     await context.sendActivity(`[${count}] The current server time is ${now.toLocaleTimeString()}.`)
     return
   }
 
-  if (datePattern.test(userText)) {
+  if (datePattern.test(normalizedText)) {
     const now = new Date()
     await context.sendActivity(`[${count}] Today's date is ${now.toLocaleDateString()}.`)
     return
   }
 
-  if (dayPattern.test(userText)) {
+  if (dayPattern.test(normalizedText)) {
     const now = new Date()
     const dayName = now.toLocaleDateString(undefined, { weekday: 'long' })
     await context.sendActivity(`[${count}] Today is ${dayName}.`)
     return
   }
 
-  if (uptimePattern.test(userText)) {
+  if (uptimePattern.test(normalizedText)) {
     const uptime = formatDuration(Date.now() - botStartedAt)
     await context.sendActivity(`[${count}] I have been running for ${uptime}.`)
     return
