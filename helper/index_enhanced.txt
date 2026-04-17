@@ -63,7 +63,7 @@ agentApp.onActivity(ActivityTypes.Message, async (context: TurnContext, state: A
   state.conversation.count = ++count
 
   const userText = context.activity.text?.trim()
-  const normalizedText = userText?.replace(/[?.!]+$/, '')
+  const normalizedText = userText ? userText.replace(/[?.!]+$/, '') : ''
 
   if (!userText) {
     await context.sendActivity(`[${count}] Say something and I will reply.`)
